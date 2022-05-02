@@ -2,10 +2,13 @@
 from PIL import Image, ExifTags
 import numpy
 import base64
+import os
 
 # Open the image form working directory
+filename = "Lenna.png"
+
 image = Image.open('Lenna.png')
-fbyte = open("Lenna.png", "rb")
+fbyte = open(filename, "rb")
 
 tmp = fbyte.read(8).hex()
 
@@ -15,6 +18,10 @@ if tmp == signature:
 else:   
     print("This file is not PNG!")
     quit()
+
+end = False
+
+# ****************** DEFINITIONS ******************
 
 def read_chunk():
     tmp = fbyte.read(4).hex()
@@ -30,6 +37,10 @@ def read_chunk():
     match chunk_type:
         case 'IHDR':
             IHDR(length)
+        case 'sRGB':
+            sRGB(length)
+        case 'IEND':
+            IEND()
         case _:
             print('\tUNKNOW CHUNK')
             fbyte.read(length)
@@ -108,19 +119,85 @@ def interlace_method(im):
             quit()
 # ************************************
 
+def sRGB(len):
+    if len != 1:
+        print('Invalid IHDR length')
+        quit()
+    rend = int(fbyte.read(1).hex(),16)
+    print('\tRendering intent:', rendering_intent(rend))
 
-while True:
+def rendering_intent(ri):
+    match ri:
+        case 0: 
+            return 'Perceptual'
+        case 1: 
+            return 'Relative colorimetric'
+        case 2: 
+            return 'Saturation'
+        case 3: 
+            return 'Absolute colorimetric'
+        case _:
+            print('Invalid rendering intent value')
+            quit()
+
+
+
+def IEND():
+    print('End of the file')
+    global end 
+    end = True
+
+def anonymization():
+    if os.path.exists("anonymous.png"):
+        os.remove("anonymous.png")    
+    f = open("anonymous.png", "xb")
+    global fbyte
+    fbyte = open(filename, "rb")
+    global end
+    end = False
+
+    sign = fbyte.read(8)
+    f.write(sign)
+
+    while not end:
+        chunk_size = fbyte.read(4)
+        chunk_type = fbyte.read(4)
+        decoded = chunk_type.decode()
+        if decoded == 'IHDR' or decoded == 'IDAT' or decoded == 'PLTE':
+            f.write(chunk_size)                             # CHUNK SIZE
+            f.write(chunk_type)                             # CHUNK TYPE
+            f.write(fbyte.read(int(chunk_size.hex(),16)))   # CHUNK CONTENT
+            f.write(fbyte.read(4))                          # CRC
+        elif decoded == 'IEND':
+            f.write(chunk_size)                             # CHUNK SIZE
+            f.write(chunk_type)                             # CHUNK TYPE
+            f.write(fbyte.read(int(chunk_size.hex(),16)))   # CHUNK CONTENT
+            f.write(fbyte.read(4))                          # CRC
+            print('anonymization finished!')
+            return
+        else:
+            fbyte.read(int(chunk_size.hex(),16)+4)
+    
+    length = int(tmp,16)
+    chunk_type = fbyte.read(4).decode()
+
+while not end:
     read_chunk()
 
+fbyte.close()
+
+#print('Anonymize the image (y/n)')
+#if input() == 'y':
+anonymization()
+
+quit()
+
+#arr = numpy.array(image)
 
 # summarize some details about the image
 # print(image.format)
 # print(image.size)
 # print(image.mode)
-
-# arr = numpy.array(image)
-
-# print(arr[0][0])
 
 # show the image
 #image.show()
