@@ -5,9 +5,9 @@ import base64
 import os
 
 # Open the image form working directory
-filename = "Lenna.png"
+filename = 'Lenna.png'
 
-image = Image.open('Lenna.png')
+image = Image.open(filename)
 fbyte = open(filename, "rb")
 
 tmp = fbyte.read(8).hex()
@@ -39,6 +39,8 @@ def read_chunk():
             IHDR(length)
         case 'sRGB':
             sRGB(length)
+        case 'PLTE':
+            PLTE(length)
         case 'IEND':
             IEND()
         case _:
@@ -140,6 +142,16 @@ def rendering_intent(ri):
             print('Invalid rendering intent value')
             quit()
 
+plt = None
+def PLTE(len):
+    if len % 3 != 0:
+        print("Invalid chunk length")
+        exit()
+    for i in range(0, len % 3):
+        plt[i] = [int(fbyte.read(1).hex(),16), int(fbyte.read(1).hex(),16), int(fbyte.read(1).hex(),16)]
+    Image.fromarray(plt).save("palette.png")
+    img = Image.open("palette.png")
+    img.show()
 
 
 def IEND():
@@ -181,6 +193,11 @@ def anonymization():
     length = int(tmp,16)
     chunk_type = fbyte.read(4).decode()
 
+
+def anonymization_2(A):
+    im = Image.fromarray(A)
+    im.save("anonymous2.png")
+
 while not end:
     read_chunk()
 
@@ -189,6 +206,8 @@ fbyte.close()
 #print('Anonymize the image (y/n)')
 #if input() == 'y':
 anonymization()
+arr = numpy.array(image)
+anonymization_2(arr)
 
 quit()
 
